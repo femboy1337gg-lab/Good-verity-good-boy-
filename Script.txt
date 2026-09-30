@@ -1,0 +1,389 @@
+--[[
+    Verity AI — FIXED model (llama removed from free tier)
+]]
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+local CoreGui = game:GetService("CoreGui")
+
+local LP = Players.LocalPlayer
+local PG = LP:WaitForChild("PlayerGui")
+
+local API_KEY = "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"
+
+pcall(function()
+    local old = CoreGui:FindFirstChild("VerityUI") or PG:FindFirstChild("VerityUI")
+    if old then old:Destroy() end
+end)
+
+local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+
+local BG = Color3.fromRGB(18, 18, 28)
+local BG2 = Color3.fromRGB(28, 28, 42)
+local ACCENT = Color3.fromRGB(130, 90, 255)
+local TEXT = Color3.fromRGB(240, 240, 255)
+local MUTED = Color3.fromRGB(160, 160, 190)
+local YOU_COL = Color3.fromRGB(100, 180, 255)
+local VERITY_COL = Color3.fromRGB(180, 140, 255)
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "VerityUI"
+gui.ResetOnSpawn = false
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.IgnoreGuiInset = true
+pcall(function() gui.Parent = CoreGui end)
+if not gui.Parent then gui.Parent = PG end
+
+local function makeDraggable(frame, handle)
+    local dragging, dragStart, startPos
+    handle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+end
+
+local floatSize = isMobile and UDim2.new(0, 140, 0, 44) or UDim2.new(0, 160, 0, 48)
+local float = Instance.new("Frame")
+float.Name = "FloatBox"
+float.Size = floatSize
+float.Position = UDim2.new(0.5, -floatSize.X.Offset/2, 0.88, 0)
+float.BackgroundColor3 = BG
+float.BorderSizePixel = 0
+float.Parent = gui
+Instance.new("UICorner", float).CornerRadius = UDim.new(0, 12)
+local floatStroke = Instance.new("UIStroke", float)
+floatStroke.Color = ACCENT
+floatStroke.Thickness = 2
+
+local floatBtn = Instance.new("TextButton")
+floatBtn.Size = UDim2.new(1, 0, 1, 0)
+floatBtn.BackgroundTransparency = 1
+floatBtn.Text = "✦  Open Verity"
+floatBtn.TextColor3 = TEXT
+floatBtn.Font = Enum.Font.GothamBold
+floatBtn.TextSize = isMobile and 14 or 16
+floatBtn.Parent = float
+
+makeDraggable(float, floatBtn)
+
+local winW = isMobile and 320 or 380
+local winH = isMobile and 420 or 480
+local main = Instance.new("Frame")
+main.Name = "Main"
+main.Size = UDim2.new(0, winW, 0, winH)
+main.Position = UDim2.new(0.5, -winW/2, 0.5, -winH/2)
+main.BackgroundColor3 = BG
+main.BorderSizePixel = 0
+main.Visible = false
+main.Parent = gui
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 14)
+local mainStroke = Instance.new("UIStroke", main)
+mainStroke.Color = ACCENT
+mainStroke.Thickness = 2
+
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1, 0, 0, 42)
+titleBar.BackgroundColor3 = BG2
+titleBar.BorderSizePixel = 0
+titleBar.Parent = main
+Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0, 14)
+local titleFix = Instance.new("Frame")
+titleFix.Size = UDim2.new(1, 0, 0, 14)
+titleFix.Position = UDim2.new(0, 0, 1, -14)
+titleFix.BackgroundColor3 = BG2
+titleFix.BorderSizePixel = 0
+titleFix.Parent = titleBar
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -50, 1, 0)
+title.Position = UDim2.new(0, 14, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = "✦ Verity"
+title.TextColor3 = ACCENT
+title.Font = Enum.Font.GothamBold
+title.TextSize = 18
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = titleBar
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 36, 0, 36)
+closeBtn.Position = UDim2.new(1, -40, 0, 3)
+closeBtn.BackgroundTransparency = 1
+closeBtn.Text = "×"
+closeBtn.TextColor3 = MUTED
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.TextSize = 24
+closeBtn.Parent = titleBar
+
+makeDraggable(main, titleBar)
+
+local chatScroll = Instance.new("ScrollingFrame")
+chatScroll.Size = UDim2.new(1, -16, 1, -100)
+chatScroll.Position = UDim2.new(0, 8, 0, 48)
+chatScroll.BackgroundTransparency = 1
+chatScroll.BorderSizePixel = 0
+chatScroll.ScrollBarThickness = 4
+chatScroll.ScrollBarImageColor3 = ACCENT
+chatScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+chatScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+chatScroll.Parent = main
+
+local listLayout = Instance.new("UIListLayout")
+listLayout.Padding = UDim.new(0, 8)
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Parent = chatScroll
+
+local inputBar = Instance.new("Frame")
+inputBar.Size = UDim2.new(1, -16, 0, 42)
+inputBar.Position = UDim2.new(0, 8, 1, -50)
+inputBar.BackgroundColor3 = BG2
+inputBar.BorderSizePixel = 0
+inputBar.Parent = main
+Instance.new("UICorner", inputBar).CornerRadius = UDim.new(0, 10)
+
+local inputBox = Instance.new("TextBox")
+inputBox.Size = UDim2.new(1, -55, 1, -8)
+inputBox.Position = UDim2.new(0, 10, 0, 4)
+inputBox.BackgroundTransparency = 1
+inputBox.PlaceholderText = "Ask Verity..."
+inputBox.PlaceholderColor3 = MUTED
+inputBox.Text = ""
+inputBox.TextColor3 = TEXT
+inputBox.Font = Enum.Font.Gotham
+inputBox.TextSize = 14
+inputBox.TextXAlignment = Enum.TextXAlignment.Left
+inputBox.ClearTextOnFocus = false
+inputBox.Parent = inputBar
+
+local sendBtn = Instance.new("TextButton")
+sendBtn.Size = UDim2.new(0, 40, 0, 34)
+sendBtn.Position = UDim2.new(1, -44, 0, 4)
+sendBtn.BackgroundColor3 = ACCENT
+sendBtn.Text = "➤"
+sendBtn.TextColor3 = TEXT
+sendBtn.Font = Enum.Font.GothamBold
+sendBtn.TextSize = 15
+sendBtn.Parent = inputBar
+Instance.new("UICorner", sendBtn).CornerRadius = UDim.new(0, 8)
+
+local function speak(text)
+    if not text or text == "" then return end
+    local clean = text:sub(1, 280)
+    pcall(function()
+        local tts = Instance.new("AudioTextToSpeech")
+        tts.Parent = workspace
+        tts.Text = clean
+        tts.VoiceId = "3"
+        tts.Volume = 1.2
+        tts.Speed = 1.05
+
+        local out = Instance.new("AudioDeviceOutput")
+        out.Parent = workspace
+
+        local wire = Instance.new("Wire")
+        wire.SourceInstance = tts
+        wire.TargetInstance = out
+        wire.Parent = workspace
+
+        tts:LoadAsync()
+        tts:Play()
+
+        task.delay(15, function()
+            pcall(function()
+                tts:Destroy()
+                out:Destroy()
+                wire:Destroy()
+            end)
+        end)
+    end)
+end
+
+local msgCount = 0
+local function addMessage(who, text, color)
+    msgCount += 1
+    local bubble = Instance.new("Frame")
+    bubble.Size = UDim2.new(1, -8, 0, 0)
+    bubble.AutomaticSize = Enum.AutomaticSize.Y
+    bubble.BackgroundColor3 = BG2
+    bubble.BorderSizePixel = 0
+    bubble.LayoutOrder = msgCount
+    bubble.Parent = chatScroll
+    Instance.new("UICorner", bubble).CornerRadius = UDim.new(0, 10)
+    local pad = Instance.new("UIPadding", bubble)
+    pad.PaddingTop = UDim.new(0, 8)
+    pad.PaddingBottom = UDim.new(0, 8)
+    pad.PaddingLeft = UDim.new(0, 10)
+    pad.PaddingRight = UDim.new(0, 10)
+
+    local nameLbl = Instance.new("TextLabel")
+    nameLbl.Size = UDim2.new(1, 0, 0, 16)
+    nameLbl.BackgroundTransparency = 1
+    nameLbl.Text = who
+    nameLbl.TextColor3 = color
+    nameLbl.Font = Enum.Font.GothamBold
+    nameLbl.TextSize = 12
+    nameLbl.TextXAlignment = Enum.TextXAlignment.Left
+    nameLbl.Parent = bubble
+
+    local msgLbl = Instance.new("TextLabel")
+    msgLbl.Size = UDim2.new(1, 0, 0, 0)
+    msgLbl.AutomaticSize = Enum.AutomaticSize.Y
+    msgLbl.Position = UDim2.new(0, 0, 0, 18)
+    msgLbl.BackgroundTransparency = 1
+    msgLbl.Text = text
+    msgLbl.TextColor3 = TEXT
+    msgLbl.Font = Enum.Font.Gotham
+    msgLbl.TextSize = 13
+    msgLbl.TextWrapped = true
+    msgLbl.TextXAlignment = Enum.TextXAlignment.Left
+    msgLbl.Parent = bubble
+
+    task.wait()
+    chatScroll.CanvasPosition = Vector2.new(0, chatScroll.AbsoluteCanvasSize.Y)
+end
+
+local history = {
+    {role = "system", content = "You are Verity, a calm helpful companion inside Roblox. Keep answers short and natural, under 2 sentences when possible."}
+}
+
+local function askAI(userText)
+    table.insert(history, {role = "user", content = userText})
+
+    local body = HttpService:JSONEncode({
+        model = "openai/gpt-oss-20b",
+        messages = history,
+        max_tokens = 150,
+        temperature = 0.7
+    })
+
+    local reqFunc = nil
+    if syn and syn.request then
+        reqFunc = syn.request
+    elseif http and http.request then
+        reqFunc = http.request
+    elseif request then
+        reqFunc = request
+    elseif http_request then
+        reqFunc = http_request
+    elseif fluxus and fluxus.request then
+        reqFunc = fluxus.request
+    end
+
+    if not reqFunc then
+        return "no request function on this executor"
+    end
+
+    local ok, res = pcall(function()
+        return reqFunc({
+            Url = "https://api.groq.com/openai/v1/chat/completions",
+            Method = "POST",
+            Headers = {
+                ["Authorization"] = "Bearer " .. API_KEY,
+                ["Content-Type"] = "application/json"
+            },
+            Body = body
+        })
+    end)
+
+    if not ok then
+        return "request error: " .. tostring(res)
+    end
+
+    if not res then
+        return "empty response object"
+    end
+
+    local bodyStr = res.Body or res.body or res.ResponseBody or ""
+    if bodyStr == "" then
+        local status = res.StatusCode or res.status or res.Status or "?"
+        return "empty body (status " .. tostring(status) .. ")"
+    end
+
+    local decodeOk, data = pcall(function()
+        return HttpService:JSONDecode(bodyStr)
+    end)
+
+    if not decodeOk then
+        return "bad json: " .. tostring(bodyStr):sub(1, 100)
+    end
+
+    if data.error then
+        local msg = data.error.message or data.error or "unknown"
+        return "api: " .. tostring(msg)
+    end
+
+    if data.choices and data.choices[1] and data.choices[1].message then
+        local reply = data.choices[1].message.content
+        table.insert(history, {role = "assistant", content = reply})
+        if #history > 12 then
+            table.remove(history, 2)
+            table.remove(history, 2)
+        end
+        return reply
+    end
+
+    return "no reply in response"
+end
+
+local busy = false
+local function send()
+    if busy then return end
+    local text = inputBox.Text:gsub("^%s+", ""):gsub("%s+$", "")
+    if text == "" then return end
+
+    busy = true
+    inputBox.Text = ""
+    addMessage("You", text, YOU_COL)
+    addMessage("Verity", "...", VERITY_COL)
+
+    task.spawn(function()
+        local reply = askAI(text)
+        for _, child in ipairs(chatScroll:GetChildren()) do
+            if child:IsA("Frame") and child.LayoutOrder == msgCount then
+                child:Destroy()
+                break
+            end
+        end
+        msgCount -= 1
+        addMessage("Verity", reply, VERITY_COL)
+        speak(reply)
+        busy = false
+    end)
+end
+
+sendBtn.MouseButton1Click:Connect(send)
+inputBox.FocusLost:Connect(function(enter)
+    if enter then send() end
+end)
+
+local open = false
+local function toggle()
+    open = not open
+    main.Visible = open
+    floatBtn.Text = open and "✦  Close Verity" or "✦  Open Verity"
+    floatStroke.Color = open and Color3.fromRGB(80, 220, 160) or ACCENT
+    if open and msgCount == 0 then
+        addMessage("Verity", "hey. i'm verity. ask me anything.", VERITY_COL)
+        speak("hey. i'm verity. ask me anything.")
+    end
+end
+
+floatBtn.MouseButton1Click:Connect(toggle)
+closeBtn.MouseButton1Click:Connect(toggle)
+
+print("[Verity] model fixed to gpt-oss-20b — open and talk")
